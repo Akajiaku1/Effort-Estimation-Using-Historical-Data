@@ -1,0 +1,62 @@
+import streamlit as st
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+
+st.title("📊 Effort Estimation Using Historical Data")
+
+st.markdown("""
+This app uses a simple machine learning model (Linear Regression) to estimate software development effort 
+based on past project data (like size, experience, and complexity).
+""")
+
+# File uploader
+uploaded_file = st.file_uploader("📁 Upload CSV File", type=["csv"])
+
+if uploaded_file is not None:
+    data = pd.read_csv(uploaded_file)
+    st.subheader("📄 Preview of Uploaded Data")
+    st.dataframe(data.head())
+
+    # Select input columns
+    default_features = ['Project_Size', 'Team_Experience', 'Complexity']
+    if not set(default_features + ['Estimated_Effort']).issubset(data.columns):
+        st.error("CSV must contain 'Project_Size', 'Team_Experience', 'Complexity', and 'Estimated_Effort' columns.")
+    else:
+        X = data[default_features]
+        y = data['Estimated_Effort']
+
+        # Split dataset
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # Train model
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        # Metrics
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+        st.subheader("📈 Model Performance")
+        st.metric("Mean Squared Error", f"{mse:.2f}")
+        st.metric("R² Score", f"{r2:.2f}")
+
+        st.subheader("🔍 Estimate Effort for a New Project")
+        project_size = st.number_input("Project Size (e.g. LOC or FP)", min_value=1000, value=12000)
+        team_exp = st.slider("Team Experience (Years)", 0, 20, 5)
+        complexity = st.selectbox("Complexity Level", options=[1, 2, 3], format_func=lambda x: ["Low", "Medium", "High"][x - 1])
+
+        if st.button("Estimate Effort"):
+            input_data = pd.DataFrame([{
+                'Project_Size': project_size,
+                'Team_Experience': team_exp,
+                'Complexity': complexity
+            }])
+            prediction = model.predict(input_data)
+            st.success(f"🔮 Predicted Effort: **{prediction[0]:.2f} person-months**")
+
+else:
+    st.info("Awaiting CSV file upload...")
+
